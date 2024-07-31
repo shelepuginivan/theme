@@ -30,6 +30,13 @@ type Copy struct {
 // Themer manages themes.
 type Themer struct {
 	prefix string // Prefix directory where themes are stored.
+	quiet  bool   // Whether to supress warnings and subprocess output.
+}
+
+// Config is a configuration for [Themer].
+type Config struct {
+	Prefix string // Prefix directory where themes are stored.
+	Quiet  bool   // Whether to supress warnings and subprocess output.
 }
 
 // New returns a new instance of [Themer].
@@ -39,24 +46,32 @@ func New() *Themer {
 	}
 }
 
+// NewWithConfig is like [New] but allows to specify configuration.
+func NewWithConfig(cfg Config) *Themer {
+	return &Themer{
+		prefix: cfg.Prefix,
+		quiet:  cfg.Quiet,
+	}
+}
+
 // Set sets a theme by name. It copies files from `copy.json` and runs `run`
 // located in the theme directory.
 func (t *Themer) Set(name string) {
 	c, err := t.ReadCopyfile(name)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "copy.json not found")
+		t.Warn(fmt.Sprintf("%s not found", copyfile))
 	}
 
 	for _, e := range c {
 		err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "cannot copy %s to %s\n", e.Src, e.Dst)
+			t.Warn(fmt.Sprintf("cannot copy %s to %s: %s", e.Src, e.Dst, err))
 		}
 	}
 
 	err = t.ExecRunfile(name)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot run exec: %s\n", err)
+		t.Warn(fmt.Sprintf("cannot run %s: %s", runfile, err))
 	}
 }
 
@@ -66,8 +81,11 @@ func (t *Themer) ExecRunfile(name string) error {
 	cmd := exec.Command(path)
 
 	cmd.Dir = filepath.Join(t.prefix, name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	if !t.quiet {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	return cmd.Run()
 }
@@ -99,4 +117,12 @@ func (t *Themer) ExpandPath(path, name string) string {
 	)
 
 	return os.ExpandEnv(r.Replace(path))
+}
+
+// Warn prints warning message to stderr.
+func (t *Themer) Warn(msg string) {
+	if t.quiet {
+		return
+	}
+	fmt.Fprintln(os.Stderr, msg)
 }
