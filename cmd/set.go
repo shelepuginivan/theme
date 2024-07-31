@@ -13,14 +13,19 @@ var setCmd = &cobra.Command{
 	Use:   "set <theme>",
 	Short: "Set a theme",
 	Args:  cobra.ExactArgs(1),
-	Run:   setCommand,
+	RunE:  setCommand,
 }
 
-func setCommand(cmd *cobra.Command, args []string) {
-	var c theme.Config
+func setCommand(cmd *cobra.Command, args []string) error {
+	prefix, err := cmd.Flags().GetString("prefix")
+	if err != nil {
+		return err
+	}
 
-	c.Prefix, _ = cmd.Flags().GetString("prefix")
-	c.Quiet, _ = cmd.Flags().GetBool("quiet")
+	t := theme.NewWithPrefix(prefix)
 
-	theme.NewWithConfig(c).Set(args[0])
+	for _, err := range t.Set(args[0]) {
+		cmd.PrintErrln(err)
+	}
+	return nil
 }

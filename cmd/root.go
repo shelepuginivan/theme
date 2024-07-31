@@ -11,7 +11,6 @@ import (
 
 func init() {
 	rootCmd.PersistentFlags().StringP("prefix", "p", filepath.Join(xdg.ConfigHome, "theme"), "Directory where themes are stored")
-	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress warnings and subprocess output")
 }
 
 var rootCmd = &cobra.Command{

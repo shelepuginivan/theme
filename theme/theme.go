@@ -3,7 +3,6 @@ package theme
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -31,66 +30,43 @@ type Copy struct {
 // Themer manages themes.
 type Themer struct {
 	prefix string // Prefix directory where themes are stored.
-	quiet  bool   // Whether to supress warnings and subprocess output.
-}
-
-// Config is a configuration for [Themer].
-type Config struct {
-	Prefix string // Prefix directory where themes are stored.
-	Quiet  bool   // Whether to supress warnings and subprocess output.
 }
 
 // New returns a new instance of [Themer].
 func New() *Themer {
-	return &Themer{
-		prefix: filepath.Join(xdg.ConfigHome, "theme"),
-	}
+	return NewWithPrefix(filepath.Join(xdg.ConfigHome, "theme"))
 }
 
-// NewWithConfig is like [New] but allows to specify configuration.
-func NewWithConfig(cfg Config) *Themer {
-	return &Themer{
-		prefix: cfg.Prefix,
-		quiet:  cfg.Quiet,
-	}
+// NewWithPrefix is like [New] but allows to specify prefix directory.
+func NewWithPrefix(prefix string) *Themer {
+	return &Themer{prefix: prefix}
 }
 
 // Set sets a theme by name. It copies files from `copy.json` and runs `run`
 // located in the theme directory.
-func (t *Themer) Set(name string) {
-	c, err := t.ReadCopyfile(name)
+// Returned slice is a slice of errors occurred during copying and execution.
+func (t *Themer) Set(name string) (errors []error) {
+	c, err := t.Copy(name)
 	if err != nil {
-		t.Warn(fmt.Sprintf("%s not found", copyfile))
+		errors = append(errors, err)
 	}
 
 	for _, e := range c {
 		err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
 		if err != nil {
-			t.Warn(fmt.Sprintf("cannot copy %s to %s: %s", e.Src, e.Dst, err))
+			errors = append(errors, err)
 		}
 	}
 
-	err = t.ExecRunfile(name)
+	err = t.Run(name)
 	if err != nil {
-		t.Warn(fmt.Sprintf("cannot run %s: %s", runfile, err))
+		errors = append(errors, err)
 	}
+	return errors
 }
 
-// List prints available themes to stdout.
-func (t *Themer) List() {
-	themes, err := t.GetList()
-	if err != nil {
-		t.Warn(fmt.Sprintf("cannot list themes: %s", err))
-		return
-	}
-
-	for _, e := range themes {
-		fmt.Println(e)
-	}
-}
-
-// GetList returns a slice of available themes.
-func (t *Themer) GetList() (themes []string, err error) {
+// Themes returns a slice of available themes.
+func (t *Themer) Themes() (themes []string, err error) {
 	entries, err := os.ReadDir(t.prefix)
 	if err != nil {
 		return nil, err
@@ -105,20 +81,9 @@ func (t *Themer) GetList() (themes []string, err error) {
 	return themes, nil
 }
 
-// Random sets a random theme.
-func (t *Themer) Random() {
-	theme, err := t.GetRandom()
-	if err != nil {
-		t.Warn(fmt.Sprintf("cannot get random theme: %s", err))
-		return
-	}
-
-	t.Set(theme)
-}
-
-// GetRandom returns a random theme.
-func (t *Themer) GetRandom() (string, error) {
-	themes, err := t.GetList()
+// Random returns a random theme.
+func (t *Themer) Random() (string, error) {
+	themes, err := t.Themes()
 	if err != nil {
 		return "", err
 	}
@@ -126,24 +91,19 @@ func (t *Themer) GetRandom() (string, error) {
 	return themes[rand.Intn(len(themes))], nil
 }
 
-// ExecRunfile runs `run` located in the theme directory.
-func (t *Themer) ExecRunfile(name string) error {
+// Run runs `run` located in the theme directory.
+func (t *Themer) Run(name string) error {
 	path := filepath.Join(t.prefix, name, runfile)
 	cmd := exec.Command(path)
 
 	cmd.Dir = filepath.Join(t.prefix, name)
 
-	if !t.quiet {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
 	return cmd.Run()
 }
 
-// ReadCopyfile reads `copy.json` located in the theme directory and returns
+// Copy reads `copy.json` located in the theme directory and returns
 // [Copy] entries.
-func (t *Themer) ReadCopyfile(name string) (c []Copy, err error) {
+func (t *Themer) Copy(name string) (c []Copy, err error) {
 	data, err := os.ReadFile(filepath.Join(t.prefix, name, copyfile))
 	if err != nil {
 		return nil, err
@@ -168,12 +128,4 @@ func (t *Themer) ExpandPath(path, name string) string {
 	)
 
 	return os.ExpandEnv(r.Replace(path))
-}
-
-// Warn prints warning message to stderr.
-func (t *Themer) Warn(msg string) {
-	if t.quiet {
-		return
-	}
-	fmt.Fprintln(os.Stderr, msg)
 }

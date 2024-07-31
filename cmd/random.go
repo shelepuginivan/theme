@@ -12,14 +12,24 @@ func init() {
 var randomCmd = &cobra.Command{
 	Use:   "random",
 	Short: "Set a random available theme",
-	Run:   randomCommand,
+	RunE:  randomCommand,
 }
 
-func randomCommand(cmd *cobra.Command, _ []string) {
-	var c theme.Config
+func randomCommand(cmd *cobra.Command, _ []string) error {
+	prefix, err := cmd.Flags().GetString("prefix")
+	if err != nil {
+		return err
+	}
 
-	c.Prefix, _ = cmd.Flags().GetString("prefix")
-	c.Quiet, _ = cmd.Flags().GetBool("quiet")
+	t := theme.NewWithPrefix(prefix)
 
-	theme.NewWithConfig(c).Random()
+	r, err := t.Random()
+	if err != nil {
+		return err
+	}
+
+	for _, err := range t.Set(r) {
+		cmd.PrintErrln(err)
+	}
+	return nil
 }

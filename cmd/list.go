@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/shelepuginivan/theme/theme"
 	"github.com/spf13/cobra"
 )
@@ -12,14 +14,24 @@ func init() {
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available themes",
-	Run:   listCommand,
+	RunE:  listCommand,
 }
 
-func listCommand(cmd *cobra.Command, _ []string) {
-	var c theme.Config
+func listCommand(cmd *cobra.Command, _ []string) error {
+	prefix, err := cmd.Flags().GetString("prefix")
+	if err != nil {
+		return err
+	}
 
-	c.Prefix, _ = cmd.Flags().GetString("prefix")
-	c.Quiet, _ = cmd.Flags().GetBool("quiet")
+	t := theme.NewWithPrefix(prefix)
 
-	theme.NewWithConfig(c).List()
+	themes, err := t.Themes()
+	if err != nil {
+		return err
+	}
+
+	for _, t := range themes {
+		fmt.Println(t)
+	}
+	return nil
 }
