@@ -1,17 +1,11 @@
 package cmd
 
 import (
-	"path/filepath"
-
-	"github.com/adrg/xdg"
 	"github.com/shelepuginivan/theme/theme"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	setCmd.Flags().BoolP("quiet", "q", false, "Suppress warnings and subprocess output")
-	setCmd.Flags().StringP("prefix", "p", filepath.Join(xdg.ConfigHome, "theme"), "Directory where themes are stored")
-
 	rootCmd.AddCommand(setCmd)
 }
 
