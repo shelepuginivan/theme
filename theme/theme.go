@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/adrg/xdg"
 	cp "github.com/otiai10/copy"
@@ -51,17 +52,25 @@ func (t *Themer) Set(name string) (errors []error) {
 		errors = append(errors, err)
 	}
 
+	var wg sync.WaitGroup
+
 	for _, e := range c {
-		err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
-		if err != nil {
-			errors = append(errors, err)
-		}
+		wg.Add(1)
+		go func() {
+			err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
+			if err != nil {
+				errors = append(errors, err)
+			}
+			wg.Done()
+		}()
 	}
 
 	err = t.Run(name)
 	if err != nil {
 		errors = append(errors, err)
 	}
+
+	wg.Wait()
 	return errors
 }
 
