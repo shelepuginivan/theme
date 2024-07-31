@@ -64,13 +64,13 @@ func (t *Themer) Set(name string) (errors []error) {
 			wg.Done()
 		}()
 	}
+	wg.Wait()
 
 	err = t.Run(name)
 	if err != nil {
 		errors = append(errors, err)
 	}
 
-	wg.Wait()
 	return errors
 }
 
