@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/adrg/xdg"
 	cp "github.com/otiai10/copy"
@@ -47,7 +48,7 @@ func (t *Themer) Set(name string) {
 	}
 
 	for _, e := range c {
-		err := cp.Copy(e.Src, e.Dst)
+		err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cannot copy %s to %s\n", e.Src, e.Dst)
 		}
@@ -85,4 +86,17 @@ func (t *Themer) ReadCopyfile(name string) (c []Copy, err error) {
 	}
 
 	return c, nil
+}
+
+// ExpandPath expands path for convenience.
+//   - Environment variables are expanded
+//   - `~` is replaced with user home directory
+//   - `@` is replaced with theme directory
+func (t *Themer) ExpandPath(path, name string) string {
+	r := strings.NewReplacer(
+		"@", filepath.Join(t.prefix, name),
+		"~", xdg.Home,
+	)
+
+	return os.ExpandEnv(r.Replace(path))
 }
