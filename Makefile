@@ -1,5 +1,2 @@
-build:
-	go build -trimpath .
-
 install:
-	mv theme /usr/local/bin
+	go build -trimpath -o /usr/local/bin .
