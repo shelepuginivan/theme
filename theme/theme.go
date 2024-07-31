@@ -75,6 +75,21 @@ func (t *Themer) Set(name string) {
 	}
 }
 
+// List prints available themes to stdout.
+func (t *Themer) List() {
+	entries, err := os.ReadDir(t.prefix)
+	if err != nil {
+		t.Warn(fmt.Sprintf("cannot list themes: %s", err))
+		return
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			fmt.Println(e.Name())
+		}
+	}
+}
+
 // ExecRunfile runs `run` located in the theme directory.
 func (t *Themer) ExecRunfile(name string) error {
 	path := filepath.Join(t.prefix, name, runfile)
