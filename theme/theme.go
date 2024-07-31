@@ -4,6 +4,7 @@ package theme
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,17 +78,52 @@ func (t *Themer) Set(name string) {
 
 // List prints available themes to stdout.
 func (t *Themer) List() {
-	entries, err := os.ReadDir(t.prefix)
+	themes, err := t.GetList()
 	if err != nil {
 		t.Warn(fmt.Sprintf("cannot list themes: %s", err))
 		return
 	}
 
+	for _, e := range themes {
+		fmt.Println(e)
+	}
+}
+
+// GetList returns a slice of available themes.
+func (t *Themer) GetList() (themes []string, err error) {
+	entries, err := os.ReadDir(t.prefix)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, e := range entries {
 		if e.IsDir() {
-			fmt.Println(e.Name())
+			themes = append(themes, e.Name())
 		}
 	}
+
+	return themes, nil
+}
+
+// Random sets a random theme.
+func (t *Themer) Random() {
+	theme, err := t.GetRandom()
+	if err != nil {
+		t.Warn(fmt.Sprintf("cannot get random theme: %s", err))
+		return
+	}
+
+	t.Set(theme)
+}
+
+// GetRandom returns a random theme.
+func (t *Themer) GetRandom() (string, error) {
+	themes, err := t.GetList()
+	if err != nil {
+		return "", err
+	}
+
+	return themes[rand.Intn(len(themes))], nil
 }
 
 // ExecRunfile runs `run` located in the theme directory.
