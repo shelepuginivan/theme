@@ -12,14 +12,16 @@ import (
 
 	"github.com/adrg/xdg"
 	cp "github.com/otiai10/copy"
+	"github.com/shelepuginivan/theme/errorlist"
 )
 
 const (
 	// File containing [Copy] entries.
 	copyfile = "copy.json"
 
-	// File that is ran during the theme setting.
-	runfile = "run"
+	// Directory that contains executable files.
+	// These executables are ran during the theme setting.
+	rundir = "run.d"
 )
 
 // Copy represents an entry that should be copied.
@@ -31,6 +33,7 @@ type Copy struct {
 // Themer manages themes.
 type Themer struct {
 	prefix string // Prefix directory where themes are stored.
+	el     *errorlist.Errorlist
 }
 
 // New returns a new instance of [Themer].
@@ -40,16 +43,19 @@ func New() *Themer {
 
 // NewWithPrefix is like [New] but allows to specify prefix directory.
 func NewWithPrefix(prefix string) *Themer {
-	return &Themer{prefix: prefix}
+	return &Themer{
+		prefix: prefix,
+		el:     errorlist.New(),
+	}
 }
 
 // Set sets a theme by name. It copies files from `copy.json` and runs `run`
 // located in the theme directory.
 // Returned slice is a slice of errors occurred during copying and execution.
-func (t *Themer) Set(name string) (errors []error) {
-	c, err := t.Copy(name)
+func (t *Themer) Set(name string) []error {
+	c, err := t.ReadCopy(name)
 	if err != nil {
-		errors = append(errors, err)
+		t.el.Append(err)
 	}
 
 	var wg sync.WaitGroup
@@ -59,19 +65,33 @@ func (t *Themer) Set(name string) (errors []error) {
 		go func() {
 			err := cp.Copy(t.ExpandPath(e.Src, name), t.ExpandPath(e.Dst, name))
 			if err != nil {
-				errors = append(errors, err)
+				t.el.Append(err)
 			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
 
-	err = t.Run(name)
+	entries, err := t.ReadRun(name)
 	if err != nil {
-		errors = append(errors, err)
+		t.el.Append(err)
 	}
 
-	return errors
+	for _, e := range entries {
+		wg.Add(1)
+		go func() {
+			cmd := exec.Command(e)
+			cmd.Dir = filepath.Join(t.prefix, name)
+
+			if err := cmd.Run(); err != nil {
+				t.el.Append(err)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	return t.el.Get()
 }
 
 // Themes returns a slice of available themes.
@@ -100,19 +120,9 @@ func (t *Themer) Random() (string, error) {
 	return themes[rand.Intn(len(themes))], nil
 }
 
-// Run runs `run` located in the theme directory.
-func (t *Themer) Run(name string) error {
-	path := filepath.Join(t.prefix, name, runfile)
-	cmd := exec.Command(path)
-
-	cmd.Dir = filepath.Join(t.prefix, name)
-
-	return cmd.Run()
-}
-
-// Copy reads `copy.json` located in the theme directory and returns
-// [Copy] entries.
-func (t *Themer) Copy(name string) (c []Copy, err error) {
+// ReadCopy reads `copy.json` located in the theme directory and returns
+// [ReadCopy] entries.
+func (t *Themer) ReadCopy(name string) (c []Copy, err error) {
 	data, err := os.ReadFile(filepath.Join(t.prefix, name, copyfile))
 	if err != nil {
 		return nil, err
@@ -124,6 +134,22 @@ func (t *Themer) Copy(name string) (c []Copy, err error) {
 	}
 
 	return c, nil
+}
+
+// ReadRun reads `run.d` located in the theme directory and returns paths to
+// all files in it.
+func (t *Themer) ReadRun(name string) (r []string, err error) {
+	rundirPath := filepath.Join(t.prefix, name, rundir)
+
+	entries, err := os.ReadDir(rundirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range entries {
+		r = append(r, filepath.Join(rundirPath, e.Name()))
+	}
+	return r, nil
 }
 
 // ExpandPath expands path for convenience.
