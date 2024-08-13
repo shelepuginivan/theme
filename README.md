@@ -43,6 +43,9 @@ $XDG_CONFIG_HOME/theme/
 
 The directory name is the name of the theme.
 
+Nesting is supported, so you can use subdirectories to organize your themes (e.g. `waybar/solid-top` is a valid theme name).
+Or you can use another prefix instead, by passing a `-p` flag (see below).
+
 ### CLI
 
 ```
