@@ -77,7 +77,7 @@ Files are copied concurrently, both in different entries of `copy.json` and with
 
 > [!TIP]
 > For convenience, `theme` expands paths specified in this file as follows:
-> - `@` is replaced with path to the theme (in the example above, `$XDG_CONFIG_HOME/my_awesome_theme`)
+> - `@` is replaced with path to the theme (in the example above, `$XDG_CONFIG_HOME/theme/my_awesome_theme`)
 > - `~` is replaced with user home directory (`$HOME`)
 > - All environment variables are expanded.
 
@@ -120,5 +120,5 @@ Hooks are executed concurrently.
 > ```shell
 > #!/bin/sh
 >
-> swww img "./files/wall.png" # this path is resolved to $XDG_CONFIG_HOME/my_awesome_theme/files/wall.png
+> swww img "./files/wall.png" # this path is resolved to $XDG_CONFIG_HOME/theme/my_awesome_theme/files/wall.png
 > ```
